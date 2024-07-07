@@ -1,3 +1,17 @@
+/**
+ * Snappy minimal power server
+ * 
+ * This is a minimal server that serves static files from the dist folder.
+ * It is built using Actix-web, a powerful, pragmatic, and extremely fast web framework for Rust.
+ * 
+ * The server serves the index.html file for all non-file paths, and serves static files with the appropriate content type.
+ * It also caches static files for 1 hour.
+ * 
+ * - To run the server, use the command `cargo run`.
+ * - To build the server for production, use the command `cargo build --release`.
+ * - To run the server in production, use the command `./target/release/snappy`.  
+ */
+
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpServer, HttpRequest, HttpResponse, Result, middleware::Logger, http::header};
 use env_logger::Env;
@@ -51,4 +65,81 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8080")?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, App};
+    use std::fs;
+
+    #[actix_rt::test]
+    async fn test_serve_existing_file() {
+        let mut app = test::init_service(
+            App::new().service(web::resource("/{filename:.*}").route(web::get().to(serve_file)))
+        ).await;
+
+        // Creare un file di test
+        fs::write("./dist/test.txt", "Hello, world!").unwrap();
+
+        let req = test::TestRequest::get().uri("/test.txt").to_request();
+        let resp = test::call_service(&mut app, req).await;
+
+        assert!(resp.status().is_success());
+
+        // Pulire
+        fs::remove_file("./dist/test.txt").unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn test_serve_nonexistent_file() {
+        let mut app = test::init_service(
+            App::new().service(web::resource("/{filename:.*}").route(web::get().to(serve_file)))
+        ).await;
+
+        let req = test::TestRequest::get().uri("/nonexistent.txt").to_request();
+        let resp = test::call_service(&mut app, req).await;
+
+        assert!(resp.status().is_success()); // Dovrebbe servire index.html
+    }
+
+    #[actix_rt::test]
+    async fn test_serve_js_file() {
+        let mut app = test::init_service(
+            App::new().service(web::resource("/{filename:.*}").route(web::get().to(serve_file)))
+        ).await;
+
+        // Creare un file JS di test
+        fs::write("./dist/test.js", "console.log('Hello');").unwrap();
+
+        let req = test::TestRequest::get().uri("/test.js").to_request();
+        let resp = test::call_service(&mut app, req).await;
+
+        assert!(resp.status().is_success());
+        let headers = resp.headers();
+        assert_eq!(headers.get(header::CACHE_CONTROL).unwrap(), "public, max-age=3600");
+
+        // Pulire
+        fs::remove_file("./dist/test.js").unwrap();
+    }
+
+    #[actix_rt::test]
+    async fn test_serve_css_file() {
+        let mut app = test::init_service(
+            App::new().service(web::resource("/{filename:.*}").route(web::get().to(serve_file)))
+        ).await;
+
+        // Creare un file CSS di test
+        fs::write("./dist/test.css", "body { color: black; }").unwrap();
+
+        let req = test::TestRequest::get().uri("/test.css").to_request();
+        let resp = test::call_service(&mut app, req).await;
+
+        assert!(resp.status().is_success());
+        let headers = resp.headers();
+        assert_eq!(headers.get(header::CACHE_CONTROL).unwrap(), "public, max-age=3600");
+
+        // Pulire
+        fs::remove_file("./dist/test.css").unwrap();
+    }
 }
