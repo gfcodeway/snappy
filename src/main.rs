@@ -16,16 +16,18 @@ async fn serve_file(req: HttpRequest) -> Result<HttpResponse> {
         let named_file = NamedFile::open(&file_path)?;
         let mut response = named_file.into_response(&req);
         
-        // Aggiungi header Cache-Control per file JavaScript
+        // Cache static files for 1 hour
         if is_js || is_css{
             response.headers_mut().insert(
                 header::CACHE_CONTROL,
                 header::HeaderValue::from_static("public, max-age=3600"),
             );
         }
-        
+
+        // Set content type for js and css files 
         Ok(response)
     } else {
+        // Serve index.html for all non-file paths
         info!("File not found, serving index: {:?}", file_path);
         Ok(NamedFile::open("./dist/app/index.html")?.into_response(&req))
     }
@@ -33,7 +35,10 @@ async fn serve_file(req: HttpRequest) -> Result<HttpResponse> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Initialize logger
     env_logger::init_from_env(Env::new().default_filter_or("info"));
+
+    // Start server
     info!("Welcome to Snappy minimal power server!");
     info!("Starting server...");
     info!("Listening on http://127.0.0.1:8080");
