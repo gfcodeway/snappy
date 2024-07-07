@@ -10,7 +10,7 @@
  * - To run the server, use the command `cargo run`.
  * - To build the server for production, use the command `cargo build --release`.
  * - To run the server in production, use the command `./target/release/snappy`.  
-
+ *
  * Writed by: @gfcodeway <g.failla@codeway.ch>
  */
 
